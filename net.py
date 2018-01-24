@@ -2,16 +2,20 @@ import tensorflow as tf
 import numpy as np
 import scipy.ndimage.filters as fi
 
+from vgg19 import Vgg19
 
 class Net:
-    def __init__(self):
-        self.inputs = tf.placeholder(dtype=tf.float32, name="inputs")
+    def __init__(self, vgg19_npy_path):
+        self.vgg19 = Vgg19(vgg19_npy_path)
         self.gpyr = self.getGaussianPyramid(5)
-        self.outputs = self.gpyr(self.inputs)
+
+        self.source_inputs = tf.placeholder(dtype=tf.float32)
+        self.source_outputs = self.gpyr(self.source_inputs)
+        self.source_encoded = [self.vgg19.build(output) for output in self.source_outputs]
+
     
     def getGaussianPyramid(self, N, size=5, sigma=3.0):
         kernel = self.generate_gaussian_kernel2d(size, sigma) 
-        print(kernel)
         gaussian_kernel = tf.convert_to_tensor(np.repeat(kernel, 3, axis=1).reshape((size, size, 3, 1)))
         def gaussianPyrDown(x):
             stacked = [x]
@@ -26,7 +30,16 @@ class Net:
         inp[size//2, size//2] = 1
         return np.float32(fi.gaussian_filter(inp, sigma))
     
+    def getLoss(self, source_encoded, target_encoded):
+        pass
+
     def predict(self, images):
+        self.target_inputs = tf.Variable(np.float32(np.random.randn(*images.shape)))
+        self.target_outputs = self.gpyr(self.target_inputs)
+        self.target_encoded = [self.vgg19.build(output) for output in self.target_outputs]
+
+        print(self.target_encoded[0][0])
+        exit()
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
             sess.run(init)

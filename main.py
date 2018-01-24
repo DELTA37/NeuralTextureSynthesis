@@ -13,7 +13,7 @@ if __name__ == '__main__':
     images = np.float32(cv2.imread(path, cv2.IMREAD_COLOR)[np.newaxis, :, :, :] / 255.0) 
     print(images.shape)
 
-    net = Net()
+    net = Net('./vgg19.npy')
     res = net.predict(images)
 
     print(res[0].shape)

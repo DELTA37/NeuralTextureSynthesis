@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import scipy.ndimage.filters as fi
-
 from vgg19 import Vgg19
 
 class Net:
@@ -11,7 +10,10 @@ class Net:
 
         self.source_inputs = tf.placeholder(dtype=tf.float32)
         self.source_outputs = self.gpyr(self.source_inputs)
-        self.source_encoded = [self.vgg19.build(output) for output in self.source_outputs]
+
+        self.source_encoded = []
+        for output in self.source_outputs:
+            self.source_encoded.extend(self.vgg19.build(output))
 
     
     def getGaussianPyramid(self, N, size=5, sigma=3.0):
@@ -31,21 +33,36 @@ class Net:
         return np.float32(fi.gaussian_filter(inp, sigma))
     
     def getLoss(self, source_encoded, target_encoded):
-        pass
+        loss = tf.Variable(0, dtype=tf.float32)
+        for i in range(len(source_encoded)):
+            x = source_encoded[i]
+            x = tf.reshape(x, [-1, int(x.shape[3])])
+            x = tf.matmul(x, x, transpose_a=True)
 
-    def predict(self, images):
+            y = target_encoded[i]
+            y = tf.reshape(target_encoded[i], [-1, int(y.shape[3])])
+            y = tf.matmul(y, y, transpose_a=True)
+            loss += tf.reduce_sum((x - y)**2)
+
+        return loss
+
+    def predict(self, images, N=1000):
         self.target_inputs = tf.Variable(np.float32(np.random.randn(*images.shape)))
         self.target_outputs = self.gpyr(self.target_inputs)
-        self.target_encoded = [self.vgg19.build(output) for output in self.target_outputs]
 
-        print(self.target_encoded[0][0])
-        exit()
+        self.target_encoded = []
+        for output in self.target_outputs:
+            self.target_encoded.extend(self.vgg19.build(output))
+        
+        loss = self.getLoss(self.source_encoded, self.target_encoded)
+
         init = tf.global_variables_initializer()
+        opt = tf.train.AdamOptimizer(0.01).minimize(loss, var_list=[self.target_inputs])
+
         with tf.Session() as sess:
             sess.run(init)
-            results = sess.run(self.outputs, feed_dict = {self.inputs: images})
+            for i in range(N):
+                _loss, _, results = sess.run([loss, opt, self.target_inputs], feed_dict = {self.source_inputs: images})
+                print(_loss)
         return results
-
-
-
 
